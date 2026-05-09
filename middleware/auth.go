@@ -2,6 +2,7 @@
 package middleware
 
 import (
+	"crypto/subtle"
 	"net/http"
 	"os"
 	"strings"
@@ -16,11 +17,9 @@ import (
 //
 // Security notes:
 //   - The expected key is read once from the environment at middleware
-//     construction, never from an in-memory store or database, so it cannot
-//     be extracted from the running process via API calls.
-//   - Comparison is constant-time via strings.EqualFold to avoid timing
-//     attacks (actual constant-time compare would use crypto/subtle for
-//     binary tokens; for printable keys EqualFold is acceptable).
+//     construction, never from an in-memory store or database.
+//   - Comparison uses crypto/subtle.ConstantTimeCompare to prevent
+//     timing-based side-channel attacks.
 func APIKeyAuth() echo.MiddlewareFunc {
 	expectedKey := os.Getenv("API_KEY")
 	if expectedKey == "" {
@@ -41,8 +40,7 @@ func APIKeyAuth() echo.MiddlewareFunc {
 				})
 			}
 
-			// Use crypto/subtle for truly constant-time comparison in production
-			if provided != expectedKey {
+			if subtle.ConstantTimeCompare([]byte(provided), []byte(expectedKey)) != 1 {
 				return c.JSON(http.StatusForbidden, models.ErrorResponse{
 					Error: "invalid API key",
 				})

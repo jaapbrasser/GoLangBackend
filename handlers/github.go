@@ -119,7 +119,28 @@ func ownerRepo(c echo.Context) (string, string, error) {
 	if owner == "" || repo == "" {
 		return "", "", fmt.Errorf("owner and repo path parameters are required")
 	}
+	if !validGitHubName(owner) {
+		return "", "", fmt.Errorf("invalid owner name")
+	}
+	if !validGitHubName(repo) {
+		return "", "", fmt.Errorf("invalid repo name")
+	}
 	return owner, repo, nil
+}
+
+// validGitHubName allows only characters GitHub itself permits in owner/repo
+// names: alphanumerics, hyphens, underscores, and dots.
+func validGitHubName(s string) bool {
+	if len(s) == 0 || len(s) > 100 {
+		return false
+	}
+	for _, r := range s {
+		if !((r >= 'a' && r <= 'z') || (r >= 'A' && r <= 'Z') ||
+			(r >= '0' && r <= '9') || r == '-' || r == '_' || r == '.') {
+			return false
+		}
+	}
+	return true
 }
 
 func badRequest(c echo.Context, msg, detail string) error {
@@ -129,14 +150,19 @@ func badRequest(c echo.Context, msg, detail string) error {
 func githubError(c echo.Context, err error) error {
 	if ghErr, ok := err.(*github.GitHubError); ok {
 		status := http.StatusBadGateway
-		if ghErr.StatusCode == 404 {
+		switch ghErr.StatusCode {
+		case http.StatusNotFound:
 			status = http.StatusNotFound
-		} else if ghErr.StatusCode == 422 {
+		case http.StatusUnprocessableEntity:
 			status = http.StatusUnprocessableEntity
-		} else if ghErr.StatusCode == 403 {
+		case http.StatusForbidden:
 			status = http.StatusForbidden
+		case http.StatusUnauthorized:
+			status = http.StatusUnauthorized
 		}
 		return c.JSON(status, models.ErrorResponse{Error: ghErr.Message})
 	}
-	return c.JSON(http.StatusInternalServerError, models.ErrorResponse{Error: "internal server error", Details: err.Error()})
+	// Log the internal detail server-side; never expose it to the caller.
+	c.Logger().Errorf("upstream error: %v", err)
+	return c.JSON(http.StatusInternalServerError, models.ErrorResponse{Error: "internal server error"})
 }

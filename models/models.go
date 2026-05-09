@@ -29,15 +29,15 @@ type Issue struct {
 
 // RepositoryInfo holds the subset of repository metadata we surface to callers.
 type RepositoryInfo struct {
-	ID          int64  `json:"id"`
-	FullName    string `json:"full_name"`
-	Description string `json:"description"`
-	Private     bool   `json:"private"`
-	HTMLURL     string `json:"html_url"`
-	Fork        bool   `json:"fork"`
-	StarCount   int    `json:"stargazers_count"`
-	WatchCount  int    `json:"watchers_count"`
-	Language    string `json:"language"`
+	ID            int64  `json:"id"`
+	FullName      string `json:"full_name"`
+	Description   string `json:"description"`
+	Private       bool   `json:"private"`
+	HTMLURL       string `json:"html_url"`
+	Fork          bool   `json:"fork"`
+	StarCount     int    `json:"stargazers_count"`
+	WatchCount    int    `json:"watchers_count"`
+	Language      string `json:"language"`
 	DefaultBranch string `json:"default_branch"`
 }
 

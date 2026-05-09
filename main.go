@@ -19,11 +19,6 @@ func main() {
 		log.Println("No .env file found, reading environment variables directly")
 	}
 
-	// Validate required env vars at startup
-	if os.Getenv("GITHUB_TOKEN") == "" {
-		log.Fatal("GITHUB_TOKEN environment variable is required")
-	}
-
 	e := echo.New()
 	e.HideBanner = true
 

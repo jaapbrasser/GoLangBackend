@@ -77,6 +77,7 @@ func (c *Client) do(req *http.Request, out any) (*http.Response, error) {
 	if resp.StatusCode >= 400 {
 		var ghErr GitHubError
 		if jsonErr := json.Unmarshal(respBody, &ghErr); jsonErr == nil && ghErr.Message != "" {
+			ghErr.StatusCode = resp.StatusCode // ← was never set; broke all status-code checks
 			return resp, &ghErr
 		}
 		return resp, fmt.Errorf("github API error %d", resp.StatusCode)
@@ -102,14 +103,12 @@ func (c *Client) RepositoryExists(ctx context.Context, owner, repo string) (bool
 	}
 
 	var info RepositoryInfo
-	resp, err := c.do(req, &info)
-	if err != nil {
+	if _, err := c.do(req, &info); err != nil {
 		if ghErr, ok := err.(*GitHubError); ok && (ghErr.StatusCode == 404 || ghErr.StatusCode == 403) {
 			return false, nil, nil
 		}
 		return false, nil, err
 	}
-	_ = resp
 	return true, &info, nil
 }
 
