@@ -1,0 +1,13 @@
+# Never commit real secrets
+.env
+
+# Go build artefacts
+github-api
+*.exe
+*.test
+*.out
+
+# IDE
+.idea/
+.vscode/
+*.swp
