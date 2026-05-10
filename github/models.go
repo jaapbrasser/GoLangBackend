@@ -1,42 +1,60 @@
-package models
+package github
 
-// ─── Requests ─────────────────────────────────────────────────────────────────
+import "fmt"
 
-// CreateIssueRequest is the JSON body accepted by POST /api/v1/repos/:owner/:repo/issues.
-type CreateIssueRequest struct {
-	Title     string   `json:"title"     validate:"required,min=1,max=256"`
-	Body      string   `json:"body"      validate:"max=65536"`
-	Assignees []string `json:"assignees" validate:"omitempty,dive,alphanum"`
-	Labels    []string `json:"labels"    validate:"omitempty,dive,min=1"`
-	Milestone *int     `json:"milestone" validate:"omitempty,min=1"`
+// ─── Request payloads ─────────────────────────────────────────────────────────
+
+// CreateIssuePayload is what we send to GitHub when opening an issue.
+type CreateIssuePayload struct {
+	Title     string   `json:"title"`
+	Body      string   `json:"body,omitempty"`
+	Assignees []string `json:"assignees,omitempty"`
+	Labels    []string `json:"labels,omitempty"`
+	Milestone *int     `json:"milestone,omitempty"`
 }
 
-// ─── Responses ────────────────────────────────────────────────────────────────
+// ─── Response models ──────────────────────────────────────────────────────────
 
-// IssueResponse is returned after successfully creating a GitHub issue.
-type IssueResponse struct {
-	Number  int    `json:"number"`
-	Title   string `json:"title"`
-	Body    string `json:"body"`
-	State   string `json:"state"`
-	URL     string `json:"url"`
-	Created string `json:"created_at"`
+// Issue is a trimmed representation of a GitHub issue.
+type Issue struct {
+	Number    int    `json:"number"`
+	Title     string `json:"title"`
+	Body      string `json:"body"`
+	State     string `json:"state"`
+	HTMLURL   string `json:"html_url"`
+	CreatedAt string `json:"created_at"`
+	UpdatedAt string `json:"updated_at"`
+	User      *User  `json:"user,omitempty"`
 }
 
-// RepoValidationResponse is returned by GET /api/v1/repos/:owner/:repo/validate.
-type RepoValidationResponse struct {
-	Exists      bool   `json:"exists"`
-	FullName    string `json:"full_name,omitempty"`
-	Description string `json:"description,omitempty"`
-	Private     bool   `json:"private,omitempty"`
-	URL         string `json:"url,omitempty"`
-	Stars       int    `json:"stars,omitempty"`
-	Language    string `json:"language,omitempty"`
-	DefaultBranch string `json:"default_branch,omitempty"`
+// RepositoryInfo holds the subset of repository metadata we surface to callers.
+type RepositoryInfo struct {
+	ID            int64  `json:"id"`
+	FullName      string `json:"full_name"`
+	Description   string `json:"description"`
+	Private       bool   `json:"private"`
+	HTMLURL       string `json:"html_url"`
+	Fork          bool   `json:"fork"`
+	StarCount     int    `json:"stargazers_count"`
+	WatchCount    int    `json:"watchers_count"`
+	Language      string `json:"language"`
+	DefaultBranch string `json:"default_branch"`
 }
 
-// ErrorResponse is the standard error envelope.
-type ErrorResponse struct {
-	Error   string `json:"error"`
-	Details string `json:"details,omitempty"`
+// User is a minimal GitHub user object.
+type User struct {
+	Login   string `json:"login"`
+	HTMLURL string `json:"html_url"`
+}
+
+// ─── Error type ───────────────────────────────────────────────────────────────
+
+// GitHubError represents an error response from the GitHub API.
+type GitHubError struct {
+	Message    string `json:"message"`
+	StatusCode int    `json:"-"` // populated by the client
+}
+
+func (e *GitHubError) Error() string {
+	return fmt.Sprintf("github: %s (HTTP %d)", e.Message, e.StatusCode)
 }

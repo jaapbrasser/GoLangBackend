@@ -5,45 +5,35 @@ import (
 	"net/http"
 	"strings"
 
-	"github-api/github"
-	"github-api/models"
+	githubclient "github-api/github"
+	apimodels "github-api/models"
 
 	"github.com/labstack/echo/v4"
 )
 
-// GitHubHandler holds a shared GitHub client for all route handlers.
 type GitHubHandler struct {
-	client *github.Client
+	client *githubclient.Client
 }
 
-// NewGitHubHandler constructs a GitHubHandler. Panics on startup if the
-// GitHub token is missing — it is better to fail fast than serve broken routes.
 func NewGitHubHandler() *GitHubHandler {
-	c, err := github.NewClient()
+	c, err := githubclient.NewClient()
 	if err != nil {
 		panic("failed to initialise GitHub client: " + err.Error())
 	}
 	return &GitHubHandler{client: c}
 }
 
-// ─── POST /api/v1/repos/:owner/:repo/issues ───────────────────────────────────
-
-// CreateIssue validates the request body and opens a new issue on GitHub.
-//
-//	POST /api/v1/repos/{owner}/{repo}/issues
-//	Body: models.CreateIssueRequest (JSON)
 func (h *GitHubHandler) CreateIssue(c echo.Context) error {
 	owner, repo, err := ownerRepo(c)
 	if err != nil {
 		return badRequest(c, err.Error(), "")
 	}
 
-	var req models.CreateIssueRequest
+	var req apimodels.CreateIssueRequest
 	if err := c.Bind(&req); err != nil {
 		return badRequest(c, "invalid JSON body", err.Error())
 	}
 
-	// Manual validation (swap in go-playground/validator if you prefer)
 	req.Title = strings.TrimSpace(req.Title)
 	if req.Title == "" {
 		return badRequest(c, "title is required", "")
@@ -55,7 +45,7 @@ func (h *GitHubHandler) CreateIssue(c echo.Context) error {
 		return badRequest(c, "body must be 65 536 characters or fewer", "")
 	}
 
-	payload := github.CreateIssuePayload{
+	payload := githubclient.CreateIssuePayload{
 		Title:     req.Title,
 		Body:      req.Body,
 		Assignees: req.Assignees,
@@ -68,7 +58,7 @@ func (h *GitHubHandler) CreateIssue(c echo.Context) error {
 		return githubError(c, err)
 	}
 
-	return c.JSON(http.StatusCreated, models.IssueResponse{
+	return c.JSON(http.StatusCreated, apimodels.IssueResponse{
 		Number:  issue.Number,
 		Title:   issue.Title,
 		Body:    issue.Body,
@@ -78,12 +68,6 @@ func (h *GitHubHandler) CreateIssue(c echo.Context) error {
 	})
 }
 
-// ─── GET /api/v1/repos/:owner/:repo/validate ──────────────────────────────────
-
-// ValidateRepository checks whether a GitHub repository exists and is
-// accessible with the configured token.
-//
-//	GET /api/v1/repos/{owner}/{repo}/validate
 func (h *GitHubHandler) ValidateRepository(c echo.Context) error {
 	owner, repo, err := ownerRepo(c)
 	if err != nil {
@@ -96,10 +80,10 @@ func (h *GitHubHandler) ValidateRepository(c echo.Context) error {
 	}
 
 	if !exists {
-		return c.JSON(http.StatusOK, models.RepoValidationResponse{Exists: false})
+		return c.JSON(http.StatusOK, apimodels.RepoValidationResponse{Exists: false})
 	}
 
-	return c.JSON(http.StatusOK, models.RepoValidationResponse{
+	return c.JSON(http.StatusOK, apimodels.RepoValidationResponse{
 		Exists:        true,
 		FullName:      info.FullName,
 		Description:   info.Description,
@@ -110,8 +94,6 @@ func (h *GitHubHandler) ValidateRepository(c echo.Context) error {
 		DefaultBranch: info.DefaultBranch,
 	})
 }
-
-// ─── Helpers ──────────────────────────────────────────────────────────────────
 
 func ownerRepo(c echo.Context) (string, string, error) {
 	owner := strings.TrimSpace(c.Param("owner"))
@@ -128,8 +110,6 @@ func ownerRepo(c echo.Context) (string, string, error) {
 	return owner, repo, nil
 }
 
-// validGitHubName allows only characters GitHub itself permits in owner/repo
-// names: alphanumerics, hyphens, underscores, and dots.
 func validGitHubName(s string) bool {
 	if len(s) == 0 || len(s) > 100 {
 		return false
@@ -144,11 +124,11 @@ func validGitHubName(s string) bool {
 }
 
 func badRequest(c echo.Context, msg, detail string) error {
-	return c.JSON(http.StatusBadRequest, models.ErrorResponse{Error: msg, Details: detail})
+	return c.JSON(http.StatusBadRequest, apimodels.ErrorResponse{Error: msg, Details: detail})
 }
 
 func githubError(c echo.Context, err error) error {
-	if ghErr, ok := err.(*github.GitHubError); ok {
+	if ghErr, ok := err.(*githubclient.GitHubError); ok {
 		status := http.StatusBadGateway
 		switch ghErr.StatusCode {
 		case http.StatusNotFound:
@@ -160,9 +140,8 @@ func githubError(c echo.Context, err error) error {
 		case http.StatusUnauthorized:
 			status = http.StatusUnauthorized
 		}
-		return c.JSON(status, models.ErrorResponse{Error: ghErr.Message})
+		return c.JSON(status, apimodels.ErrorResponse{Error: ghErr.Message})
 	}
-	// Log the internal detail server-side; never expose it to the caller.
 	c.Logger().Errorf("upstream error: %v", err)
-	return c.JSON(http.StatusInternalServerError, models.ErrorResponse{Error: "internal server error"})
+	return c.JSON(http.StatusInternalServerError, apimodels.ErrorResponse{Error: "internal server error"})
 }

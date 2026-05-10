@@ -1,4 +1,4 @@
-// Package github provides a thin, secure client around the GitHub REST API.
+// Package githubclient provides a thin, secure client around the GitHub REST API.
 // The personal access token is read once from the environment at construction
 // time and is never exposed outside this package.
 package github
