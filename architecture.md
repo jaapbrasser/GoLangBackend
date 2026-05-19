@@ -2,7 +2,7 @@
 
 ## Overview
 
-This document outlines the recommended architecture for building a production-ready REST API using Go and the [Gin](https://github.com/gin-gonic/gin) web framework. It covers project structure, layered architecture, middleware strategy, error handling, and deployment considerations.
+This document outlines the architecture of a Go-based service built with the [Gin](https://github.com/gin-gonic/gin) web framework that checks the existence of GitHub repositories. It covers project structure, layered architecture, middleware strategy, error handling, and deployment considerations.
 
 ---
 
@@ -10,54 +10,50 @@ This document outlines the recommended architecture for building a production-re
 
 | Concern             | Tool / Library                          |
 |---------------------|-----------------------------------------|
-| Language            | Go (1.21+)                              |
+| Language            | Go (1.25+)                              |
 | HTTP Framework      | [Gin](https://github.com/gin-gonic/gin) |
-| ORM / DB Layer      | [GORM](https://gorm.io/) or `database/sql` |
 | Configuration       | [Viper](https://github.com/spf13/viper) |
 | Validation          | Gin built-in (`binding` struct tags)    |
-| Logging             | [Zap](https://github.com/uber-go/zap) or `slog` (stdlib) |
-| Authentication      | JWT via [golang-jwt](https://github.com/golang-jwt/jwt) |
+| Logging             | [Zap](https://github.com/uber-go/zap)   |
 | Testing             | `testing` stdlib + [testify](https://github.com/stretchr/testify) |
-| Containerisation    | Docker + Docker Compose                 |
 
 ---
 
 ## Project Structure
 
 ```
-my-api/
+GoLangBackend/
 ├── cmd/
 │   └── api/
 │       └── main.go              # Entry point — wires everything together
 ├── internal/
 │   ├── config/
 │   │   └── config.go            # App configuration (env vars, Viper)
+│   ├── dto/
+│   │   └── repository_dto.go    # Request/Response DTOs for repository operations
 │   ├── handler/
-│   │   ├── user_handler.go      # HTTP handlers (thin layer — no business logic)
-│   │   └── health_handler.go
+│   │   ├── health_handler.go    # Health check handler
+│   │   └── repository_handler.go # Handler for repository operations
 │   ├── middleware/
-│   │   ├── auth.go              # JWT authentication middleware
-│   │   ├── logger.go            # Request logging middleware
-│   │   └── cors.go              # CORS middleware
-│   ├── service/
-│   │   └── user_service.go      # Business logic layer
-│   ├── repository/
-│   │   └── user_repository.go   # Database access layer
+│   │   └── logger.go            # Request logging middleware
 │   ├── model/
-│   │   └── user.go              # Domain models (structs)
-│   └── dto/
-│       └── user_dto.go          # Request/Response DTOs (data transfer objects)
+│   │   └── repository.go        # Domain models (structs)
+│   ├── router/
+│   │   └── router.go            # Route setup
+│   └── service/
+│       ├── github_service.go    # Business logic for GitHub operations
+│       └── github_service_test.go # Tests for GitHub service
 ├── pkg/
 │   ├── errors/
 │   │   └── errors.go            # Shared error types and helpers
+│   ├── logger/
+│   │   └── logger.go            # Logger initialization and helpers
 │   └── response/
 │       └── response.go          # Standardised JSON response helpers
-├── migrations/
-│   └── 001_create_users.sql     # Database migration files
 ├── .env.example
-├── docker-compose.yml
-├── Dockerfile
-└── go.mod
+├── go.mod
+├── go.sum
+└── LICENSE
 ```
 
 > **Note:** The `internal/` directory is a Go convention — packages inside it cannot be imported by external modules, enforcing encapsulation.
@@ -70,8 +66,8 @@ The API follows a clean three-layer architecture. Each layer has a single respon
 
 ```
 Request
-   │
-   ▼
+    │
+    ▼
 ┌──────────────┐
 │   Handler    │  ← Parses HTTP request, calls service, writes response
 └──────┬───────┘
@@ -83,7 +79,7 @@ Request
        │
        ▼
 ┌──────────────┐
-│  Repository  │  ← Database queries (no logic, just data access)
+│  Integration │  ← External API calls (no logic, just data access)
 └──────────────┘
 ```
 
@@ -95,12 +91,12 @@ Request
 
 ### Service
 - Implements all business rules
-- Calls one or more repositories
+- Calls one or more integrations
 - Returns domain models or errors
 - Is independently unit-testable (no HTTP context)
 
-### Repository
-- Executes database queries via GORM or `database/sql`
+### Integration
+- Executes external API calls via HTTP clients
 - Returns raw domain models
 - Contains **no** business logic
 
@@ -108,42 +104,23 @@ Request
 
 ## Routing
 
-Define all routes in `main.go` or a dedicated `router.go` file, grouped by resource and version.
+Define all routes in a dedicated `router.go` file, grouped by resource and version.
 
 ```go
-func SetupRouter(
-    userHandler *handler.UserHandler,
-    authMiddleware gin.HandlerFunc,
-) *gin.Engine {
+func SetupRouter() *gin.Engine {
     r := gin.New()
 
-    // Global middleware
     r.Use(middleware.Logger())
-    r.Use(middleware.Recovery())
-    r.Use(middleware.CORS())
+    r.Use(gin.Recovery())
 
-    // Health check (no auth)
     r.GET("/health", handler.Health)
 
-    // API v1
+    repoService := service.NewGitHubService()
+    repoHandler := handler.NewRepositoryHandler(repoService)
+
     v1 := r.Group("/api/v1")
     {
-        // Public routes
-        auth := v1.Group("/auth")
-        {
-            auth.POST("/register", userHandler.Register)
-            auth.POST("/login", userHandler.Login)
-        }
-
-        // Protected routes
-        users := v1.Group("/users")
-        users.Use(authMiddleware)
-        {
-            users.GET("", userHandler.ListUsers)
-            users.GET("/:id", userHandler.GetUser)
-            users.PUT("/:id", userHandler.UpdateUser)
-            users.DELETE("/:id", userHandler.DeleteUser)
-        }
+        v1.POST("/repositories/check", repoHandler.CheckRepository)
     }
 
     return r
@@ -160,9 +137,6 @@ Apply middleware at three levels: globally, per group, or per route.
 |----------------|--------|-----------------------------------------------|
 | Logger         | Global | Log method, path, status, and latency         |
 | Recovery       | Global | Recover from panics, return 500               |
-| CORS           | Global | Set `Access-Control-Allow-*` headers          |
-| Auth (JWT)     | Group  | Validate Bearer token, inject user into ctx   |
-| RateLimiter    | Group  | Throttle requests per IP or API key           |
 
 ---
 
@@ -243,8 +217,6 @@ Use environment variables for all configuration. Load them with Viper so they ca
 // internal/config/config.go
 type Config struct {
     Port        string
-    DatabaseURL string
-    JWTSecret   string
     Environment string // "development" | "production"
 }
 ```
@@ -252,8 +224,6 @@ type Config struct {
 **.env.example**
 ```
 PORT=8080
-DATABASE_URL=postgres://user:pass@localhost:5432/mydb?sslmode=disable
-JWT_SECRET=change-me-in-production
 ENVIRONMENT=development
 ```
 
@@ -289,14 +259,13 @@ func main() {
 |------------|--------------|------------------------------|
 | Handler    | Integration  | `net/http/httptest` + testify |
 | Service    | Unit         | testify/mock                  |
-| Repository | Integration  | Test DB (Docker) + testify    |
+| Integration| Unit         | testify/mock (for HTTP client)|
 
-Use interfaces for the service and repository layers to enable easy mocking:
+Use interfaces for the service and integration layers to enable easy mocking:
 
 ```go
-type UserService interface {
-    GetUser(id uint) (*model.User, error)
-    CreateUser(dto dto.CreateUserRequest) (*model.User, error)
+type GitHubService interface {
+    CheckRepositoryExists(owner, repo string) (*model.Repository, error)
 }
 ```
 
@@ -326,8 +295,8 @@ CMD ["./server"]
 ## Key Principles
 
 - **Thin handlers** — handlers should only parse input and write output; all logic lives in services.
-- **Dependency injection** — pass dependencies (DB, services) via constructors, not global vars.
-- **Interfaces at boundaries** — define interfaces for services and repositories to keep layers decoupled and testable.
+- **Dependency injection** — pass dependencies (services) via constructors, not global vars.
+- **Interfaces at boundaries** — define interfaces for services and integrations to keep layers decoupled and testable.
 - **Explicit error handling** — always handle errors; never silently ignore `err`.
 - **Environment-based config** — no hardcoded secrets or URLs; use `.env` locally and real env vars in production.
 - **Version your API** — prefix all routes with `/api/v1` from day one to enable future non-breaking changes.
