@@ -6,8 +6,8 @@ type CheckRepositoryRequest struct {
 }
 
 type CheckRepositoryResponse struct {
-	Exists   bool   `json:"exists"`
-	HTMLURL  string `json:"html_url,omitempty"`
+	Exists  bool   `json:"exists"`
+	HTMLURL string `json:"html_url,omitempty"`
 }
 
 type CreateIssueRequest struct {

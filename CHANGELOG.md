@@ -5,6 +5,20 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.1.1] - 2026-05-21
+
+### Added
+
+- Test coverage for empty token edge case in `getToken()` method
+- `empty token configured` test case for both `TestCreateIssue` and `TestGetIssue`
+
+### Changed
+
+- Fixed import ordering across all Go files (standard library → local project → external)
+- Fixed struct field alignment in `Repository` and `githubService` structs
+- Applied consistent formatting with `gofmt` to all source files
+- Added trailing newlines to all Go files
+
 ## [0.1.0] - 2026-05-21
 
 ### Added

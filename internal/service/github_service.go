@@ -13,9 +13,9 @@ import (
 )
 
 type githubService struct {
-	client *http.Client
+	client  *http.Client
 	baseURL string
-	tokens map[string]string
+	tokens  map[string]string
 }
 
 type githubRepoResponse struct {

@@ -3,8 +3,9 @@ package middleware
 import (
 	"time"
 
-	"github.com/gin-gonic/gin"
 	"GoLangBackend/pkg/logger"
+
+	"github.com/gin-gonic/gin"
 )
 
 func Logger() gin.HandlerFunc {

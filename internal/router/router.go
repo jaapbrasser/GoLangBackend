@@ -4,10 +4,11 @@ import (
 	"encoding/json"
 	"os"
 
-	"github.com/gin-gonic/gin"
 	"GoLangBackend/internal/handler"
 	"GoLangBackend/internal/middleware"
 	"GoLangBackend/internal/service"
+
+	"github.com/gin-gonic/gin"
 )
 
 func SetupRouter() *gin.Engine {

@@ -90,24 +90,24 @@ func TestCreateIssue(t *testing.T) {
 			wantErr:    false,
 		},
 		{
-			name:       "no tokens configured",
-			owner:      "octocat",
-			repo:       "Hello-World",
-			title:      "Test Issue",
-			body:       "Test body",
-			tokens:     nil,
-			wantErr:    true,
-			wantErrIs:  ErrTokenNotConfigured,
+			name:      "no tokens configured",
+			owner:     "octocat",
+			repo:      "Hello-World",
+			title:     "Test Issue",
+			body:      "Test body",
+			tokens:    nil,
+			wantErr:   true,
+			wantErrIs: ErrTokenNotConfigured,
 		},
 		{
-			name:       "token not for repo",
-			owner:      "octocat",
-			repo:       "Hello-World",
-			title:      "Test Issue",
-			body:       "Test body",
-			tokens:     map[string]string{"other/repo": "token"},
-			wantErr:    true,
-			wantErrIs:  ErrTokenNotConfigured,
+			name:      "token not for repo",
+			owner:     "octocat",
+			repo:      "Hello-World",
+			title:     "Test Issue",
+			body:      "Test body",
+			tokens:    map[string]string{"other/repo": "token"},
+			wantErr:   true,
+			wantErrIs: ErrTokenNotConfigured,
 		},
 		{
 			name:       "github returns 401",
@@ -143,6 +143,16 @@ func TestCreateIssue(t *testing.T) {
 			mockBody:   `invalid json`,
 			wantErr:    true,
 		},
+		{
+			name:      "empty token configured",
+			owner:     "octocat",
+			repo:      "Hello-World",
+			title:     "Test Issue",
+			body:      "Test body",
+			tokens:    map[string]string{"octocat/Hello-World": ""},
+			wantErr:   true,
+			wantErrIs: ErrTokenNotConfigured,
+		},
 	}
 
 	for _, tt := range tests {
@@ -177,15 +187,15 @@ func TestCreateIssue(t *testing.T) {
 
 func TestGetIssue(t *testing.T) {
 	tests := []struct {
-		name         string
-		owner        string
-		repo         string
-		issueNumber  int
-		tokens       map[string]string
-		mockStatus   int
-		mockBody     string
-		wantErr      bool
-		wantErrIs    error
+		name        string
+		owner       string
+		repo        string
+		issueNumber int
+		tokens      map[string]string
+		mockStatus  int
+		mockBody    string
+		wantErr     bool
+		wantErrIs   error
 	}{
 		{
 			name:        "issue found",
@@ -227,6 +237,15 @@ func TestGetIssue(t *testing.T) {
 			mockBody:    "",
 			wantErr:     true,
 			wantErrIs:   ErrUnauthorized,
+		},
+		{
+			name:        "empty token configured",
+			owner:       "octocat",
+			repo:        "Hello-World",
+			issueNumber: 42,
+			tokens:      map[string]string{"octocat/Hello-World": ""},
+			wantErr:     true,
+			wantErrIs:   ErrTokenNotConfigured,
 		},
 	}
 

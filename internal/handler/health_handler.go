@@ -1,8 +1,8 @@
 package handler
 
 import (
-	"github.com/gin-gonic/gin"
 	"GoLangBackend/pkg/response"
+	"github.com/gin-gonic/gin"
 )
 
 func Health(c *gin.Context) {

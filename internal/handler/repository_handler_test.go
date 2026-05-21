@@ -7,13 +7,14 @@ import (
 	"net/http/httptest"
 	"testing"
 
-	"github.com/gin-gonic/gin"
-	"github.com/stretchr/testify/assert"
-	"github.com/stretchr/testify/mock"
 	"GoLangBackend/internal/dto"
 	"GoLangBackend/internal/model"
 	"GoLangBackend/internal/service"
 	"GoLangBackend/pkg/response"
+
+	"github.com/gin-gonic/gin"
+	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/mock"
 )
 
 type MockGitHubService struct {
@@ -106,7 +107,7 @@ func TestCheckRepository(t *testing.T) {
 
 		w := httptest.NewRecorder()
 		c, _ := gin.CreateTestContext(w)
-		c.Request, _ = http.NewRequest(http.MethodPost, "/api/v1/repositories/check", 
+		c.Request, _ = http.NewRequest(http.MethodPost, "/api/v1/repositories/check",
 			bytes.NewBufferString(`{invalid json`))
 		c.Request.Header.Set("Content-Type", "application/json")
 
