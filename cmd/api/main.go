@@ -6,6 +6,8 @@ import (
 	"GoLangBackend/pkg/logger"
 )
 
+const version = "0.1.1"
+
 func main() {
 	cfg := config.Load()
 
@@ -14,7 +16,7 @@ func main() {
 
 	r := router.SetupRouter()
 
-	logger.L().Info("Starting server", "port", cfg.Port)
+	logger.L().Info("Starting server", "port", cfg.Port, "version", version)
 	if err := r.Run(":" + cfg.Port); err != nil {
 		logger.L().Error("Failed to start server", "error", err)
 	}
