@@ -157,6 +157,75 @@ All API endpoints are prefixed with `/api/v1` unless otherwise noted.
   {"success":true,"data":{"exists":false,"htmlUrl":""}}
   ```
 
+### Create Issue
+- **POST** `/api/v1/repositories/issues`
+- **Request Body**:
+  ```json
+  {
+    "owner": "string",
+    "repo": "string",
+    "title": "string",
+    "body": "string"
+  }
+  ```
+- **Success Response** (200 OK):
+  ```json
+  {
+    "success": true,
+    "data": {
+      "number": 42,
+      "html_url": "https://github.com/owner/repo/issues/42",
+      "title": "Issue title",
+      "state": "open"
+    }
+  }
+  ```
+- **Error Response** (500):
+  ```json
+  {
+    "success": false,
+    "error": "no github token configured for the requested repository"
+  }
+  ```
+- **Example curl command**:
+  ```bash
+  curl -X POST http://localhost:8080/api/v1/repositories/issues \
+    -H "Content-Type: application/json" \
+    -d '{"owner":"myorg","repo":"myrepo","title":"Bug report","body":"Description of the bug"}'
+  ```
+
+### Get Issue
+- **GET** `/api/v1/repositories/issues/:number?owner=org&repo=repo`
+- **Path Parameters**:
+  - `number` - The issue number
+- **Query Parameters**:
+  - `owner` - Repository owner
+  - `repo` - Repository name
+- **Success Response** (200 OK):
+  ```json
+  {
+    "success": true,
+    "data": {
+      "number": 42,
+      "html_url": "https://github.com/owner/repo/issues/42",
+      "title": "Issue title",
+      "body": "Issue description",
+      "state": "open"
+    }
+  }
+  ```
+- **Error Response** (404):
+  ```json
+  {
+    "success": false,
+    "error": "issue not found"
+  }
+  ```
+- **Example curl command**:
+  ```bash
+  curl -X GET "http://localhost:8080/api/v1/repositories/issues/42?owner=myorg&repo=myrepo"
+  ```
+
 ## Common Use Cases
 
 1. **Repository Validation**: Before performing operations on a GitHub repository, validate that it exists.
@@ -185,6 +254,7 @@ The service uses Viper for configuration, which reads from:
 Available configuration options:
 - `PORT`: Port to run the server on (default: 8080)
 - `ENVIRONMENT`: Application environment (default: development)
+- `GITHUB_TOKENS`: JSON map of repository tokens for authenticated GitHub API access (e.g., `{"owner/repo":"ghp_token"}`)
 
 ## Project Structure
 

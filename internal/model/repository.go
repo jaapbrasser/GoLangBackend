@@ -6,3 +6,11 @@ type Repository struct {
 	Exists bool
 	URL   string
 }
+
+type Issue struct {
+	Number   int    `json:"number"`
+	HTMLURL  string `json:"html_url"`
+	Title    string `json:"title"`
+	Body     string `json:"body"`
+	State    string `json:"state"`
+}
