@@ -245,6 +245,12 @@ Run tests with coverage:
 go test ./... -cover
 ```
 
+Run integration tests:
+```bash
+export GITHUB_ISSUETOKEN=your_token_here
+go test -v ./internal/service/ -run Integration
+```
+
 ## Configuration
 
 The service uses Viper for configuration, which reads from:

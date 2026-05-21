@@ -45,6 +45,7 @@ type GitHubService interface {
 	CheckRepositoryExists(owner, repo string) (*model.Repository, error)
 	CreateIssue(owner, repo, title, body string) (*model.Issue, error)
 	GetIssue(owner, repo string, issueNumber int) (*model.Issue, error)
+	CloseIssue(owner, repo string, issueNumber int) (*model.Issue, error)
 }
 
 func NewGitHubService() GitHubService {
@@ -191,6 +192,56 @@ func (s *githubService) GetIssue(owner, repo string, issueNumber int) (*model.Is
 
 	if resp.StatusCode == http.StatusNotFound {
 		return nil, ErrIssueNotFound
+	}
+
+	if resp.StatusCode != http.StatusOK {
+		body, _ := io.ReadAll(resp.Body)
+		return nil, fmt.Errorf("github API returned status %d: %s", resp.StatusCode, string(body))
+	}
+
+	var issueResp githubIssueResponse
+	if err := json.NewDecoder(resp.Body).Decode(&issueResp); err != nil {
+		return nil, err
+	}
+
+	return &model.Issue{
+		Number:  issueResp.Number,
+		HTMLURL: issueResp.HTMLURL,
+		Title:   issueResp.Title,
+		Body:    issueResp.Body,
+		State:   issueResp.State,
+	}, nil
+}
+
+func (s *githubService) CloseIssue(owner, repo string, issueNumber int) (*model.Issue, error) {
+	token, err := s.getToken(owner, repo)
+	if err != nil {
+		return nil, err
+	}
+
+	url := fmt.Sprintf("%s/repos/%s/%s/issues/%d", s.baseURL, owner, repo, issueNumber)
+
+	// To close an issue, we need to PATCH it with state: "closed"
+	reqBody, err := json.Marshal(map[string]string{"state": "closed"})
+	if err != nil {
+		return nil, err
+	}
+
+	req, err := http.NewRequest(http.MethodPatch, url, bytes.NewReader(reqBody))
+	if err != nil {
+		return nil, err
+	}
+	req.Header.Set("Authorization", "token "+token)
+	req.Header.Set("Content-Type", "application/json")
+
+	resp, err := s.client.Do(req)
+	if err != nil {
+		return nil, err
+	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode == http.StatusUnauthorized {
+		return nil, ErrUnauthorized
 	}
 
 	if resp.StatusCode != http.StatusOK {
